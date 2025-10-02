@@ -1,6 +1,6 @@
 # LevelDB4j
 
-A high-performance, pure Java library for reading LevelDB databases. While inspired by the Python [ccl_leveldb](https://github.com/cclgroupltd/ccl_leveldb) library, this is **not a simple port** - it's a complete reimplementation with significant performance optimizations specifically designed for Java, providing the ability to read LevelDB table files (.ldb/.sst) and log files (.log) without requiring native LevelDB binaries.
+A high-performance, pure Java library for reading LevelDB databases. While inspired by the Python [ccl_leveldb](https://github.com/cclgroupltd/ccl_chromium_reader/blob/master/ccl_chromium_reader/storage_formats/ccl_leveldb.py) library, this is **not a simple port** - it's a complete reimplementation with significant performance optimizations specifically designed for Java, providing the ability to read LevelDB table files (.ldb/.sst) and log files (.log) without requiring native LevelDB binaries.
 
 ## Features
 
@@ -509,7 +509,7 @@ The library can efficiently process large LevelDB databases with minimal memory 
 
 ## Credits
 
-This library is inspired by the Python [ccl_leveldb](https://github.com/cclgroupltd/ccl_leveldb) library by CCL Forensics, but is **not a simple port**. It's a complete reimplementation in Java with significant architectural changes and performance optimizations:
+This library is inspired by the Python [ccl_leveldb](https://github.com/cclgroupltd/ccl_chromium_reader/blob/master/ccl_chromium_reader/storage_formats/ccl_leveldb.py) library by CCL Forensics, but is **not a simple port**. It's a complete reimplementation in Java with significant architectural changes and performance optimizations:
 
 - **Original Python library** (ccl_leveldb):
   - Copyright 2020-2021, CCL Forensics
