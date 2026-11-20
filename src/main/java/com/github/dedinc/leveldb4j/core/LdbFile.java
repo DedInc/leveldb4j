@@ -78,22 +78,27 @@ public class LdbFile implements Closeable, Iterable<Record> {
     /**
      * Reads a block from the file.
      */
-    private Block readBlock(BlockHandle handle) throws IOException {
-        file.seek(handle.getOffset());
+    private Block readBlock(BlockHandle handle) {
         byte[] rawBlock = new byte[(int) handle.getLength()];
-        file.readFully(rawBlock);
-
-        byte[] trailer = new byte[BLOCK_TRAILER_SIZE];
-        file.readFully(trailer);
-
-        // Check compression type (first byte of trailer)
-        boolean isCompressed = trailer[0] != 0;
-
-        if (isCompressed) {
-            rawBlock = SnappyDecompressor.decompress(new ByteArrayInputStream(rawBlock));
+        
+        try{
+            file.seek(handle.getOffset());
+            file.readFully(rawBlock);
+    
+            byte[] trailer = new byte[BLOCK_TRAILER_SIZE];
+            file.readFully(trailer);
+    
+            // Check compression type (first byte of trailer)
+            boolean isCompressed = trailer[0] != 0;
+    
+            if (isCompressed) {
+                rawBlock = SnappyDecompressor.decompress(new ByteArrayInputStream(rawBlock));
+            }
+    
+            return new Block(rawBlock, isCompressed, this, handle.getOffset());
+        }catch(IOException e){
+            return new Block(rawBlock, false, this, handle.getOffset(), false, e);
         }
-
-        return new Block(rawBlock, isCompressed, this, handle.getOffset());
     }
 
     /**
@@ -101,6 +106,11 @@ public class LdbFile implements Closeable, Iterable<Record> {
      */
     private List<IndexEntry> readIndex() throws IOException {
         Block indexBlock = readBlock(indexHandle);
+
+        if(!indexBlock.isValid()){
+            throw indexBlock.getReadException();//rethrow read exception as index block read error is fatal
+        }
+        
         List<IndexEntry> indexEntries = new ArrayList<>();
 
         for (RawBlockEntry entry : indexBlock) {
@@ -134,16 +144,18 @@ public class LdbFile implements Closeable, Iterable<Record> {
                 return;
             }
 
-            // Move to next block
-            if (indexPosition < index.size()) {
-                try {
-                    IndexEntry entry = index.get(indexPosition++);
-                    currentBlock = readBlock(entry.handle);
-                    currentBlockIterator = currentBlock.iterator();
-                } catch (IOException e) {
-                    currentBlockIterator = null;
-                }
-            } else {
+            boolean read = false;
+
+            while(!read && indexPosition < index.size()){
+                IndexEntry entry = index.get(indexPosition++);
+                currentBlock = readBlock(entry.handle);
+                if(currentBlock.isValid()){
+                    read = true;
+                }                    
+            }
+            if(read){
+                currentBlockIterator = currentBlock.iterator();
+            }else{
                 currentBlockIterator = null;
             }
         }
