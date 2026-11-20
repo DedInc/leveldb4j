@@ -21,7 +21,23 @@ public class Block implements Iterable<RawBlockEntry> {
     private final long offset;
     private final int restartArrayCount;
     private final int restartArrayOffset;
+    boolean valid;
+    IOException readError;
 
+    public boolean isValid(){
+        return valid;
+    }
+
+    public IOException getReadError(){
+        return readError;
+    }
+
+    public Block(byte[] raw, boolean wasCompressed, LdbFile origin, long offset, boolean valid, IOException exception) {
+        this(raw, wasCompressed, origin, offset);
+        this.valid = valid;
+        this.readError = exception;
+    }
+    
     public Block(byte[] raw, boolean wasCompressed, LdbFile origin, long offset) {
         this.raw = raw;
         this.wasCompressed = wasCompressed;
