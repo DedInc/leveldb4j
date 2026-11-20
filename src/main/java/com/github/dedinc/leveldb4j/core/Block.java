@@ -163,7 +163,7 @@ public class Block implements Iterable<RawBlockEntry> {
 
         @Override
         public boolean hasNext() {
-            return nextEntry != null;
+            return valid && nextEntry != null;
         }
 
         @Override
