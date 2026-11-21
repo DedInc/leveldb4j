@@ -79,9 +79,24 @@ public class LdbFile implements Closeable, Iterable<Record> {
      * Reads a block from the file.
      */
     private Block readBlock(BlockHandle handle) {
-        byte[] rawBlock = new byte[(int) handle.getLength()];
-        
+        long offset = handle.getOffset();
+        long length = handle.getLength();
+        byte[] rawBlock = null;
+
         try{
+            long fileLength = file.length();
+
+            if (offset < 0 || length < 0
+                    || length > Integer.MAX_VALUE
+                    || offset > fileLength
+                    || length > fileLength - offset - BLOCK_TRAILER_SIZE) {
+                throw new IOException(
+                    "Invalid block handle: offset=" + offset
+                    + ", length=" + length);
+            }
+
+            rawBlock = new byte[(int) handle.getLength()];
+
             file.seek(handle.getOffset());
             file.readFully(rawBlock);
     
