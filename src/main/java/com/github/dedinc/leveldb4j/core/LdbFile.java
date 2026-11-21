@@ -108,7 +108,7 @@ public class LdbFile implements Closeable, Iterable<Record> {
         Block indexBlock = readBlock(indexHandle);
 
         if(!indexBlock.isValid()){
-            throw indexBlock.getReadException();//rethrow read exception as index block read error is fatal
+            throw indexBlock.getReadError();//rethrow read exception as index block read error is fatal
         }
         
         List<IndexEntry> indexEntries = new ArrayList<>();
@@ -151,7 +151,7 @@ public class LdbFile implements Closeable, Iterable<Record> {
                 currentBlock = readBlock(entry.handle);
                 if(currentBlock.isValid()){
                     read = true;
-                }                    
+                }
             }
             if(read){
                 currentBlockIterator = currentBlock.iterator();
