@@ -139,27 +139,29 @@ public class LdbFile implements Closeable, Iterable<Record> {
         }
 
         private void advance() {
-            // If we have a current block iterator with more entries, we're done
-            if (currentBlockIterator != null && currentBlockIterator.hasNext()) {
+            if (currentBlockIterator != null
+                    && currentBlockIterator.hasNext()) {
                 return;
             }
 
-            boolean read = false;
-
-            while(!read && indexPosition < index.size()){
+            while (indexPosition < index.size()) {
                 IndexEntry entry = index.get(indexPosition++);
                 currentBlock = readBlock(entry.handle);
-                if(currentBlock.isValid()){
-                    read = true;
+
+                if (!currentBlock.isValid()) {
+                    continue;
+                }
+
+                currentBlockIterator = currentBlock.iterator();
+
+                if (currentBlockIterator.hasNext()) {
+                    return;
                 }
             }
-            if(read){
-                currentBlockIterator = currentBlock.iterator();
-            }else{
-                currentBlockIterator = null;
-            }
-        }
 
+            currentBlockIterator = null;
+        }
+        
         @Override
         public boolean hasNext() {
             return currentBlockIterator != null && currentBlockIterator.hasNext();
