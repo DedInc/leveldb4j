@@ -78,22 +78,42 @@ public class LdbFile implements Closeable, Iterable<Record> {
     /**
      * Reads a block from the file.
      */
-    private Block readBlock(BlockHandle handle) throws IOException {
-        file.seek(handle.getOffset());
-        byte[] rawBlock = new byte[(int) handle.getLength()];
-        file.readFully(rawBlock);
+    private Block readBlock(BlockHandle handle) {
+        long offset = handle.getOffset();
+        long length = handle.getLength();
+        byte[] rawBlock = null;
 
-        byte[] trailer = new byte[BLOCK_TRAILER_SIZE];
-        file.readFully(trailer);
+        try{
+            long fileLength = file.length();
 
-        // Check compression type (first byte of trailer)
-        boolean isCompressed = trailer[0] != 0;
+            if (offset < 0 || length < 0
+                    || length > Integer.MAX_VALUE
+                    || offset > fileLength
+                    || length > fileLength - offset - BLOCK_TRAILER_SIZE) {
+                throw new IOException(
+                    "Invalid block handle: offset=" + offset
+                    + ", length=" + length);
+            }
 
-        if (isCompressed) {
-            rawBlock = SnappyDecompressor.decompress(new ByteArrayInputStream(rawBlock));
+            rawBlock = new byte[(int) handle.getLength()];
+
+            file.seek(handle.getOffset());
+            file.readFully(rawBlock);
+    
+            byte[] trailer = new byte[BLOCK_TRAILER_SIZE];
+            file.readFully(trailer);
+    
+            // Check compression type (first byte of trailer)
+            boolean isCompressed = trailer[0] != 0;
+    
+            if (isCompressed) {
+                rawBlock = SnappyDecompressor.decompress(new ByteArrayInputStream(rawBlock));
+            }
+    
+            return new Block(rawBlock, isCompressed, this, handle.getOffset());
+        }catch(IOException e){
+            return new Block(rawBlock, false, this, handle.getOffset(), false, e);
         }
-
-        return new Block(rawBlock, isCompressed, this, handle.getOffset());
     }
 
     /**
@@ -101,6 +121,11 @@ public class LdbFile implements Closeable, Iterable<Record> {
      */
     private List<IndexEntry> readIndex() throws IOException {
         Block indexBlock = readBlock(indexHandle);
+
+        if(!indexBlock.isValid()){
+            throw indexBlock.getReadError();//rethrow read exception as index block read error is fatal
+        }
+        
         List<IndexEntry> indexEntries = new ArrayList<>();
 
         for (RawBlockEntry entry : indexBlock) {
@@ -129,25 +154,29 @@ public class LdbFile implements Closeable, Iterable<Record> {
         }
 
         private void advance() {
-            // If we have a current block iterator with more entries, we're done
-            if (currentBlockIterator != null && currentBlockIterator.hasNext()) {
+            if (currentBlockIterator != null
+                    && currentBlockIterator.hasNext()) {
                 return;
             }
 
-            // Move to next block
-            if (indexPosition < index.size()) {
-                try {
-                    IndexEntry entry = index.get(indexPosition++);
-                    currentBlock = readBlock(entry.handle);
-                    currentBlockIterator = currentBlock.iterator();
-                } catch (IOException e) {
-                    currentBlockIterator = null;
-                }
-            } else {
-                currentBlockIterator = null;
-            }
-        }
+            while (indexPosition < index.size()) {
+                IndexEntry entry = index.get(indexPosition++);
+                currentBlock = readBlock(entry.handle);
 
+                if (!currentBlock.isValid()) {
+                    continue;
+                }
+
+                currentBlockIterator = currentBlock.iterator();
+
+                if (currentBlockIterator.hasNext()) {
+                    return;
+                }
+            }
+
+            currentBlockIterator = null;
+        }
+        
         @Override
         public boolean hasNext() {
             return currentBlockIterator != null && currentBlockIterator.hasNext();
